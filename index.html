@@ -338,6 +338,8 @@
             padding: 30px;
             max-width: 500px;
             width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
             animation: modalFadeIn 0.3s ease-in-out;
         }
@@ -465,6 +467,7 @@
     </style>
 </head>
 <body>
+    <!-- Welcome Page -->
     <div id="welcome-page" class="page active">
         <div class="welcome-container">
             <h1 class="welcome-title">Personal Health Dashboard</h1>
@@ -488,6 +491,8 @@
             </div>
         </div>
     </div>
+
+    <!-- Dashboard Page -->
     <div id="dashboard-page" class="page">
         <div class="container">
             <div class="dashboard-header">
@@ -546,6 +551,8 @@
             </div>
         </div>
     </div>
+
+    <!-- Personal Info Page -->
     <div id="personal-info-page" class="page">
         <div class="container">
             <div class="dashboard-header">
@@ -675,6 +682,8 @@
             </div>
         </div>
     </div>
+
+    <!-- Doctor Access Page -->
     <div id="doctor-access-page" class="page">
         <div class="doctor-access-container">
             <div class="doctor-logo"><i class="fas fa-user-md"></i></div>
@@ -685,9 +694,68 @@
                 <input type="text" id="share-code-input" placeholder="Enter 6-character code" maxlength="6">
             </div>
             <button id="access-patient-btn" class="btn">Access Patient Information</button>
+            <div id="access-error" style="color: red; margin-top: 10px; display: none;">Invalid share code. Please try again.</div>
+            <div style="margin-top: 30px;">
+                <button id="back-to-welcome" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Back to Welcome</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Doctor View Page -->
+    <div id="doctor-view-page" class="page">
+        <div class="container">
+            <div class="dashboard-header">
+                <h1 class="dashboard-title">Patient Health Information</h1>
+                <button id="back-to-doctor-access" class="btn"><i class="fas fa-arrow-left"></i> Back</button>
+            </div>
+            <div id="doctor-info-container" class="personal-info-container"></div>
+        </div>
+    </div>
+
+    <!-- Password Modal -->
+    <div id="password-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Enter Password</h3>
+                <button class="close-btn" id="close-password-modal">&times;</button>
+            </div>
+            <div class="form-group">
+                <label for="password-input">Password</label>
+                <input type="password" id="password-input" placeholder="Enter your password">
+            </div>
+            <button id="verify-password-btn" class="btn">Verify</button>
+            <div id="password-error" style="color: red; margin-top: 10px; display: none;">Incorrect password. Please try again.</div>
+        </div>
+    </div>
+
+    <!-- Doctor View Modal -->
+    <div id="doctor-view-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Doctor Access</h3>
+                <button class="close-btn" id="close-doctor-modal">&times;</button>
+            </div>
+            <div class="form-group">
+                <label for="doctor-code-input">Share Code</label>
+                <input type="text" id="doctor-code-input" placeholder="Enter 6-character code" maxlength="6">
+            </div>
+            <button id="view-patient-btn" class="btn">View Patient Information</button>
+            <div id="doctor-code-error" style="color: red; margin-top: 10px; display: none;">Invalid share code. Please try again.</div>
+        </div>
+    </div>
+
+    <!-- Calculator Modal -->
+    <div id="calculator-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title" id="calculator-title">Calculator</h3>
+                <button class="close-btn" id="close-calculator-modal">&times;</button>
+            </div>
             <div id="calculator-content"></div>
         </div>
     </div>
+
+    <!-- Share Modal -->
     <div id="share-modal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -707,6 +775,7 @@
             </div>
         </div>
     </div>
+
     <script>
         const healthData = {};
 
@@ -965,21 +1034,22 @@
 
             container.appendChild(patientInfoSection);
 
-            const certificatesSection = document.createElement('div');
-            certificatesSection.innerHTML = `
-                <h2 class="section-title">Medical Certificates</h2>
-                <div class="upload-grid">
-                    ${Object.keys(data.uploadedFiles).map(fileType => `
-                        <div class="upload-item">
-                            <div class="upload-icon"><i class="fas fa-file-medical"></i></div>
-                            <div>${fileType.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}</div>
-                            <div class="uploaded-file">${data.uploadedFiles[fileType].name}</div>
-                        </div>
-                    `).join('')}
-                </div>
-            `;
-
-            container.appendChild(certificatesSection);
+            if (Object.keys(data.uploadedFiles).length > 0) {
+                const certificatesSection = document.createElement('div');
+                certificatesSection.innerHTML = `
+                    <h2 class="section-title">Medical Certificates</h2>
+                    <div class="upload-grid">
+                        ${Object.keys(data.uploadedFiles).map(fileType => `
+                            <div class="upload-item">
+                                <div class="upload-icon"><i class="fas fa-file-medical"></i></div>
+                                <div>${fileType.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</div>
+                                <div class="uploaded-file">${data.uploadedFiles[fileType].name}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                container.appendChild(certificatesSection);
+            }
 
             const analysisSection = document.createElement('div');
             analysisSection.innerHTML = `
@@ -1243,13 +1313,36 @@
 
         function copyShareCode() {
             const shareCode = document.getElementById('share-code').textContent;
+            
+            // Modern clipboard API
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(shareCode).then(function() {
+                    showCopySuccess();
+                }).catch(function() {
+                    // Fallback to older method
+                    fallbackCopyTextToClipboard(shareCode);
+                });
+            } else {
+                // Fallback for older browsers
+                fallbackCopyTextToClipboard(shareCode);
+            }
+        }
+
+        function fallbackCopyTextToClipboard(text) {
             const tempInput = document.createElement('input');
-            tempInput.value = shareCode;
+            tempInput.value = text;
             document.body.appendChild(tempInput);
             tempInput.select();
-            document.execCommand('copy');
+            try {
+                document.execCommand('copy');
+                showCopySuccess();
+            } catch (err) {
+                console.error('Failed to copy text: ', err);
+            }
             document.body.removeChild(tempInput);
+        }
 
+        function showCopySuccess() {
             const copySuccess = document.getElementById('copy-success');
             copySuccess.style.display = 'block';
             setTimeout(() => {
@@ -1280,32 +1373,32 @@
                 case 'age':
                     title.textContent = 'Age Calculator';
                     content.innerHTML = getAgeCalculatorHTML();
-                    setupAgeCalculator();
+                    setTimeout(() => setupAgeCalculator(), 100);
                     break;
                 case 'bmi':
                     title.textContent = 'BMI Calculator';
                     content.innerHTML = getBMICalculatorHTML();
-                    setupBMICalculator();
+                    setTimeout(() => setupBMICalculator(), 100);
                     break;
                 case 'heart-rate':
                     title.textContent = 'Heart Rate Checker';
                     content.innerHTML = getHeartRateCheckerHTML();
-                    setupHeartRateChecker();
+                    setTimeout(() => setupHeartRateChecker(), 100);
                     break;
                 case 'temperature':
                     title.textContent = 'Body Temperature Checker';
                     content.innerHTML = getTemperatureCheckerHTML();
-                    setupTemperatureChecker();
+                    setTimeout(() => setupTemperatureChecker(), 100);
                     break;
                 case 'sleep':
                     title.textContent = 'Sleep Time Calculator';
                     content.innerHTML = getSleepCalculatorHTML();
-                    setupSleepCalculator();
+                    setTimeout(() => setupSleepCalculator(), 100);
                     break;
                 case 'water':
                     title.textContent = 'Water Intake Calculator';
                     content.innerHTML = getWaterIntakeCalculatorHTML();
-                    setupWaterIntakeCalculator();
+                    setTimeout(() => setupWaterIntakeCalculator(), 100);
                     break;
             }
 
@@ -1557,11 +1650,17 @@
                 case 'heart-rate':
                     analysisData.heartRate = value;
                     let hrStatus = 'Normal';
-                    if (value < 60) hrStatus = 'Low';
-                    else if (value > 100) hrStatus = 'High';
+                    let hrClass = 'status-normal';
+                    if (value < 60) {
+                        hrStatus = 'Low';
+                        hrClass = 'status-low';
+                    } else if (value > 100) {
+                        hrStatus = 'High';
+                        hrClass = 'status-high';
+                    }
                     document.getElementById('hr-value').textContent = `${value} bpm`;
                     document.getElementById('hr-status').textContent = hrStatus;
-                    document.getElementById('hr-status').className = `analysis-status status-${hrStatus.toLowerCase()}`;
+                    document.getElementById('hr-status').className = `analysis-status ${hrClass}`;
                     break;
             }
             saveAnalysisData(analysisData);
@@ -1585,53 +1684,4 @@
         }
     </script>
 </body>
-</html>d="access-error" style="color: red; margin-top: 10px; display: none;">Invalid share code. Please try again.</div>
-            <div style="margin-top: 30px;">
-                <button id="back-to-welcome" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Back to Welcome</button>
-            </div>
-        </div>
-    </div>
-    <div id="doctor-view-page" class="page">
-        <div class="container">
-            <div class="dashboard-header">
-                <h1 class="dashboard-title">Patient Health Information</h1>
-                <button id="back-to-doctor-access" class="btn"><i class="fas fa-arrow-left"></i> Back</button>
-            </div>
-            <div id="doctor-info-container" class="personal-info-container"></div>
-        </div>
-    </div>
-    <div id="password-modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 class="modal-title">Enter Password</h3>
-                <button class="close-btn" id="close-password-modal">&times;</button>
-            </div>
-            <div class="form-group">
-                <label for="password-input">Password</label>
-                <input type="password" id="password-input" placeholder="Enter your password">
-            </div>
-            <button id="verify-password-btn" class="btn">Verify</button>
-            <div id="password-error" style="color: red; margin-top: 10px; display: none;">Incorrect password. Please try again.</div>
-        </div>
-    </div>
-    <div id="doctor-view-modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 class="modal-title">Doctor Access</h3>
-                <button class="close-btn" id="close-doctor-modal">&times;</button>
-            </div>
-            <div class="form-group">
-                <label for="doctor-code-input">Share Code</label>
-                <input type="text" id="doctor-code-input" placeholder="Enter 6-character code" maxlength="6">
-            </div>
-            <button id="view-patient-btn" class="btn">View Patient Information</button>
-            <div id="doctor-code-error" style="color: red; margin-top: 10px; display: none;">Invalid share code. Please try again.</div>
-        </div>
-    </div>
-    <div id="calculator-modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 class="modal-title" id="calculator-title">Calculator</h3>
-                <button class="close-btn" id="close-calculator-modal">&times;</button>
-            </div>
-            <div i
+</html>
